@@ -19,6 +19,10 @@ from functools import partial
 from bs4 import BeautifulSoup
 from concurrent import futures
 
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+
 __title__ = 'Struts2 Scan'
 __version__ = '0.1'
 __author__ = 'HatBoy'
@@ -46,7 +50,7 @@ process = 10
 def get(url, headers=None, encoding='UTF-8'):
     """GET请求发送包装"""
     try:
-        html = requests.get(url, headers=headers, proxies=proxies, timeout=_tiemout)
+        html = requests.get(url, headers=headers, proxies=proxies, timeout=_tiemout, verify=False)
         html = html.content.decode(encoding)
         return html.replace('\x00', '').strip()
     except ChunkedEncodingError as e:
@@ -63,7 +67,7 @@ def get(url, headers=None, encoding='UTF-8'):
 def get_302(url, headers=None, encoding='UTF-8'):
     """GET请求发送包装"""
     try:
-        html = requests.get(url, headers=headers, proxies=proxies, timeout=_tiemout, allow_redirects=False)
+        html = requests.get(url, headers=headers, proxies=proxies, timeout=_tiemout, allow_redirects=False, verify=False)
         status_code = html.status_code
         if status_code == 302:
             html = html.headers.get("Location", "")
@@ -84,7 +88,7 @@ def get_302(url, headers=None, encoding='UTF-8'):
 def get_stream(url, headers=None, encoding='UTF-8'):
     """分块接受数据"""
     try:
-        lines = requests.get(url, headers=headers, timeout=_tiemout, stream=True, proxies=proxies)
+        lines = requests.get(url, headers=headers, timeout=_tiemout, stream=True, proxies=proxies, verify=False)
         html = list()
         for line in lines.iter_lines():
             if b'\x00' in line:
@@ -105,7 +109,7 @@ def get_stream(url, headers=None, encoding='UTF-8'):
 def post(url, data=None, headers=None, encoding='UTF-8', files=None):
     """POST请求发送包装"""
     try:
-        html = requests.post(url, data=data, headers=headers, proxies=proxies, timeout=_tiemout, files=files)
+        html = requests.post(url, data=data, headers=headers, proxies=proxies, timeout=_tiemout, files=files, verify=False)
         html = html.content.decode(encoding)
         return html.replace('\x00', '').strip()
     except ChunkedEncodingError as e:
@@ -123,7 +127,7 @@ def post_stream(url, data=None, headers=None, encoding='UTF-8', files=None):
     """分块接受数据"""
     try:
         lines = requests.post(url, data=data, headers=headers, timeout=_tiemout, stream=True, proxies=proxies,
-                              files=None)
+                              files=None, verify=False)
         html = list()
         for line in lines.iter_lines():
             line = line.decode(encoding)
@@ -1394,13 +1398,13 @@ reverse_names = ["S2_001", "S2_007", "S2_008", "S2_009", "S2_013", "S2_015", "S2
 upload_names = ["S2_013", "S2_016", "S2_019", "S2_045", "S2_046"]
 
 banner = """
- ____  _              _       ____    ____                  
-/ ___|| |_ _ __ _   _| |_ ___|___ \  / ___|  ___ __ _ _ __  
-\___ \| __| '__| | | | __/ __| __) | \___ \ / __/ _` | '_ \ 
+ ____  _              _       ____    ____
+/ ___|| |_ _ __ _   _| |_ ___|___ \  / ___|  ___ __ _ _ __
+\___ \| __| '__| | | | __/ __| __) | \___ \ / __/ _` | '_ \
  ___) | |_| |  | |_| | |_\__ \/ __/   ___) | (_| (_| | | | |
 |____/ \__|_|   \__,_|\__|___/_____| |____/ \___\__,_|_| |_|
 
-                                      Author By HatBoy        
+                                      Author By HatBoy
 """
 
 
@@ -1494,7 +1498,8 @@ def main(info, version, url, file, name, data, header, encode, proxy, exec, reve
     if name and url:
         # 指定漏洞利用
         name = name.upper().replace('-', '_')
-        if name not in s2_list:
+        name_cls = s2_dict[name]
+        if name_cls is None or name_cls not in s2_list:
             click.secho("[ERROR] 暂不支持{name}漏洞利用".format(name=name), fg="red")
             exit(0)
         s = s2_dict[name](url, data, header, encode)
